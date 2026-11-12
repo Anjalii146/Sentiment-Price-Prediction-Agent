@@ -215,6 +215,80 @@ def train_single_split(
     return np.asarray(predictions)
 
 
+def calculate_directional_accuracy(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+) -> float:
+    """Fraction of predictions where predicted sign matches actual sign.
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray
+        Actual and predicted next-day returns.
+
+    Returns
+    -------
+    float
+        Directional accuracy in [0, 1]. Returns 0.0 if inputs are empty.
+    """
+    if len(y_true) == 0:
+        return 0.0
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    correct = np.sign(y_true) == np.sign(y_pred)
+    return float(correct.mean())
+
+
+def calculate_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Root mean squared error between actual and predicted values.
+
+    Parameters
+    ----------
+    y_true, y_pred : np.ndarray
+        Actual and predicted next-day returns.
+
+    Returns
+    -------
+    float
+        RMSE. Returns 0.0 if inputs are empty.
+    """
+    if len(y_true) == 0:
+        return 0.0
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+
+
+def evaluate_predictions(predictions: pd.DataFrame) -> dict[str, float]:
+    """Compute directional accuracy and RMSE from a predictions DataFrame.
+
+    Parameters
+    ----------
+    predictions : pd.DataFrame
+        Must contain ``actual_next_return`` and ``predicted_next_return``.
+
+    Returns
+    -------
+    dict
+        Keys: ``directional_accuracy``, ``rmse``, ``n_predictions``.
+    """
+    if predictions.empty:
+        return {
+            "directional_accuracy": 0.0,
+            "rmse": 0.0,
+            "n_predictions": 0,
+        }
+
+    y_true = predictions["actual_next_return"].to_numpy()
+    y_pred = predictions["predicted_next_return"].to_numpy()
+
+    return {
+        "directional_accuracy": calculate_directional_accuracy(y_true, y_pred),
+        "rmse": calculate_rmse(y_true, y_pred),
+        "n_predictions": int(len(predictions)),
+    }
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -225,6 +299,7 @@ if __name__ == "__main__":
 
     predictions = walk_forward_predict(df, n_test_days=10)
     if not predictions.empty:
+        metrics = evaluate_predictions(predictions)
         predictions.to_csv(OUTPUT, index=False)
         print(f"[train_model] Saved {len(predictions)} walk-forward predictions to {OUTPUT}")
         print(
@@ -232,5 +307,8 @@ if __name__ == "__main__":
                 ["date", "ticker", "current_close", "predicted_next_return", "direction_signal"]
             ].to_string(index=False)
         )
+        print(f"[train_model] Directional accuracy: {metrics['directional_accuracy']:.3f}")
+        print(f"[train_model] RMSE: {metrics['rmse']:.6f}")
+        print(f"[train_model] N predictions: {metrics['n_predictions']}")
     else:
         print("[train_model] No walk-forward predictions to save.")
