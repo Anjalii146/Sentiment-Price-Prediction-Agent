@@ -10,8 +10,6 @@ Row for Date N uses features from Date N to predict target_next_return
 
 from __future__ import annotations
 
-from typing import Optional
-
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
