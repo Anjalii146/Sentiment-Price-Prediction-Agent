@@ -1,0 +1,19 @@
+# HengSeng Sentiment Agent - tracked assets
+# Start small (2 assets) for development speed; expand at the end of the sprint.
+assets:
+  - ticker: "0700.HK"
+    name: "Tencent Holdings"
+    exchange: "HKEX"
+    keywords:
+      - "Tencent"
+      - "0700.HK"
+      - "Tencent Holdings"
+      - "腾讯控股"
+  - ticker: "005930.KS"
+    name: "Samsung Electronics"
+    exchange: "KRX"
+    keywords:
+      - "Samsung"
+      - "005930.KS"
+      - "Samsung Electronics"
+      - "삼성전자"

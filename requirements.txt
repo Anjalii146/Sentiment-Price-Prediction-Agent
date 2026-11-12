@@ -1,0 +1,12 @@
+pandas
+numpy
+yfinance
+apify-client
+exa-py
+scikit-learn
+lightgbm
+vaderSentiment
+streamlit
+plotly
+pyyaml
+python-dotenv
