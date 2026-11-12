@@ -126,6 +126,69 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def create_target(df: pd.DataFrame) -> pd.DataFrame:
+    """Create next-day return target with correct shift (zero look-ahead bias).
+
+    For each ticker, computes tomorrow's close by shifting the close series
+    up by one row (close.shift(-1)), then:
+
+        target_next_return = (close_shifted_minus_1 - close) / close
+                          = (Close tomorrow - Close today) / Close today
+
+    The row for Date N therefore contains:
+      - Features from Date N (price, sentiment, technicals)
+      - Target = next-day return derived from Close(N+1)
+
+    The last row per ticker is dropped because tomorrow's close is unknown.
+
+    CRITICAL: The target is derived from a future close but is stored as the
+    LABEL for today's row only. It is never used as a feature for any row.
+    This guarantees zero look-ahead bias in training.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Must contain ``ticker``, ``date``, ``close`` columns.
+        Should already have technical features applied.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of ``df`` with added ``target_next_return`` column. Last row per
+        ticker dropped. Sorted by ticker then date.
+    """
+    required = ["ticker", "date", "close"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"df missing columns for target creation: {missing}")
+
+    result = df.sort_values(["ticker", "date"]).copy()
+    result["close"] = pd.to_numeric(result["close"], errors="coerce")
+
+    # Tomorrow's close per ticker: shift up by one within each ticker group
+    result["close_tomorrow"] = result.groupby("ticker")["close"].shift(-1)
+
+    # Next-day return: (Close tomorrow - Close today) / Close today
+    result["target_next_return"] = (
+        (result["close_tomorrow"] - result["close"]) / result["close"]
+    )
+
+    # Drop rows where tomorrow's close is unknown (last row per ticker)
+    before = len(result)
+    result = result.dropna(subset=["close_tomorrow", "target_next_return"])
+    after = len(result)
+
+    result = result.drop(columns=["close_tomorrow"])
+    result = result.sort_values(["ticker", "date"]).reset_index(drop=True)
+
+    print(
+        f"[create_target] Created target for {after} rows "
+        f"(dropped {before - after} last-row-per-ticker with unknown tomorrow)"
+    )
+
+    return result
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -137,6 +200,7 @@ if __name__ == "__main__":
 
     merged = merge_price_sentiment(price_df, sentiment_df)
     merged = add_technical_features(merged)
+    merged = create_target(merged)
     merged.to_csv(OUTPUT, index=False)
 
     print(f"[build_targets] Merged {len(merged)} rows to {OUTPUT}")
