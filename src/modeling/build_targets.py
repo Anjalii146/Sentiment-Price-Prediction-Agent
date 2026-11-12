@@ -189,6 +189,31 @@ def create_target(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def build_dataset(
+    price_df: pd.DataFrame,
+    sentiment_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Orchestrate the full merge → features → target pipeline.
+
+    Parameters
+    ----------
+    price_df : pd.DataFrame
+        Daily OHLCV price data.
+    sentiment_df : pd.DataFrame
+        Aggregated daily sentiment per ticker.
+
+    Returns
+    -------
+    pd.DataFrame
+        Model-ready dataset with features from Date N and
+        target_next_return from Date N+1. Zero look-ahead bias.
+    """
+    merged = merge_price_sentiment(price_df, sentiment_df)
+    merged = add_technical_features(merged)
+    merged = create_target(merged)
+    return merged
+
+
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -198,12 +223,10 @@ if __name__ == "__main__":
     price_df = pd.read_csv("data/processed/price_sample.csv")
     sentiment_df = pd.read_csv("data/processed/daily_sentiment_sample.csv")
 
-    merged = merge_price_sentiment(price_df, sentiment_df)
-    merged = add_technical_features(merged)
-    merged = create_target(merged)
+    merged = build_dataset(price_df, sentiment_df)
     merged.to_csv(OUTPUT, index=False)
 
-    print(f"[build_targets] Merged {len(merged)} rows to {OUTPUT}")
+    print(f"[build_targets] Saved {len(merged)} model-ready rows to {OUTPUT}")
     print(
         "[build_targets] Columns: "
         + ", ".join(merged.columns.tolist())
