@@ -69,6 +69,108 @@ def split_features_target(
     return X, y, meta
 
 
+def walk_forward_predict(
+    df: pd.DataFrame,
+    n_test_days: int = 10,
+) -> pd.DataFrame:
+    """Walk-forward validation with expanding window.
+
+    For each of the last ``n_test_days`` unique dates in the dataset:
+      - Train on all rows with date strictly before the test date (expanding window)
+      - Test on rows with date == test date
+    This mirrors "train on days 1 to T, test on T+1; move window forward".
+
+    Time order is strictly preserved — no shuffling, no train_test_split —
+    guaranteeing zero look-ahead bias.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Model-ready dataframe with features, target, date, ticker, close.
+    n_test_days : int, default 10
+        Number of most recent dates to use as walk-forward test dates.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: ``date, ticker, current_close, actual_next_return,
+        predicted_next_return, predicted_next_close, direction_signal``.
+        Empty DataFrame with correct columns if insufficient data.
+    """
+    required = ["date", "ticker", "close", TARGET_COLUMN] + FEATURE_COLUMNS
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"df missing columns: {missing}")
+
+    result_columns = [
+        "date",
+        "ticker",
+        "current_close",
+        "actual_next_return",
+        "predicted_next_return",
+        "predicted_next_close",
+        "direction_signal",
+    ]
+
+    df = df.sort_values(["date", "ticker"]).copy()
+    df["date"] = pd.to_datetime(df["date"])
+
+    unique_dates = sorted(df["date"].unique())
+    if len(unique_dates) < 2:
+        print("[walk_forward] Not enough unique dates for walk-forward validation.")
+        return pd.DataFrame(columns=result_columns)
+
+    # Use the last n_test_days unique dates as test dates
+    test_dates = unique_dates[-n_test_days:]
+
+    all_predictions = []
+
+    for test_date in test_dates:
+        train_mask = df["date"] < test_date
+        test_mask = df["date"] == test_date
+
+        n_train = int(train_mask.sum())
+        n_test = int(test_mask.sum())
+
+        if n_train == 0 or n_test == 0:
+            print(
+                f"[walk_forward] Skipping {test_date.date()}: "
+                f"train={n_train}, test={n_test}"
+            )
+            continue
+
+        X_train, y_train, _ = split_features_target(df[train_mask])
+        X_test, y_test, meta_test = split_features_target(df[test_mask])
+
+        preds = train_single_split(X_train, y_train, X_test)
+
+        fold = meta_test.copy()
+        fold["actual_next_return"] = y_test.values
+        fold["predicted_next_return"] = preds
+        fold["predicted_next_close"] = (
+            fold["current_close"] * (1 + fold["predicted_next_return"])
+        )
+        fold["direction_signal"] = np.where(
+            fold["predicted_next_return"] > 0, "Bullish", "Bearish"
+        )
+
+        all_predictions.append(fold[result_columns])
+
+    if not all_predictions:
+        print("[walk_forward] No predictions generated.")
+        return pd.DataFrame(columns=result_columns)
+
+    result = pd.concat(all_predictions, ignore_index=True)
+    result = result.sort_values(["date", "ticker"]).reset_index(drop=True)
+
+    print(
+        f"[walk_forward] Generated {len(result)} predictions across "
+        f"{result['date'].nunique()} test dates"
+    )
+
+    return result
+
+
 def train_single_split(
     X_train: pd.DataFrame,
     y_train: pd.Series,
@@ -116,23 +218,19 @@ def train_single_split(
 if __name__ == "__main__":
     from pathlib import Path
 
+    OUTPUT = Path("outputs/predictions_sample.csv")
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+
     df = pd.read_csv("data/processed/merged_sample.csv")
-    X, y, meta = split_features_target(df)
 
-    # Simple chronological split: train on all but last date, test on last date
-    test_date = meta["date"].max()
-    train_mask = meta["date"] < test_date
-    test_mask = ~train_mask
-
-    if train_mask.sum() == 0 or test_mask.sum() == 0:
-        print("[train_model] Not enough data for a single split; skipping.")
-    else:
-        preds = train_single_split(
-            X[train_mask], y[train_mask], X[test_mask]
+    predictions = walk_forward_predict(df, n_test_days=10)
+    if not predictions.empty:
+        predictions.to_csv(OUTPUT, index=False)
+        print(f"[train_model] Saved {len(predictions)} walk-forward predictions to {OUTPUT}")
+        print(
+            predictions[
+                ["date", "ticker", "current_close", "predicted_next_return", "direction_signal"]
+            ].to_string(index=False)
         )
-        out = meta[test_mask].copy()
-        out["predicted_next_return"] = preds
-        out["predicted_next_close"] = out["current_close"] * (1 + out["predicted_next_return"])
-        out["direction_signal"] = np.where(out["predicted_next_return"] > 0, "Bullish", "Bearish")
-        print(f"[train_model] Single-split predictions on {test_date}:")
-        print(out[["date", "ticker", "current_close", "predicted_next_return", "direction_signal"]])
+    else:
+        print("[train_model] No walk-forward predictions to save.")
