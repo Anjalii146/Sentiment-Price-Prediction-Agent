@@ -281,6 +281,8 @@ else:
         sentiment_df=load_daily_sentiment(),
     )
 
+    sentiment_df = load_daily_sentiment()
+
     st.divider()
 
     # --- Main chart: candlestick + sentiment bars ---------------------------
