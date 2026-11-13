@@ -223,7 +223,8 @@ def load_price_data() -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["date"])
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], format="mixed")
     return df
 
 
@@ -233,7 +234,8 @@ def load_daily_sentiment() -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["date"])
+    if not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], format="mixed")
     return df
 
 
@@ -244,7 +246,7 @@ def load_predictions() -> pd.DataFrame:
         return pd.DataFrame()
     df = pd.read_csv(path)
     if not df.empty and "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], format="mixed")
     return df
 
 
@@ -255,7 +257,7 @@ def load_news() -> pd.DataFrame:
         return pd.DataFrame()
     df = pd.read_csv(path)
     if not df.empty and "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], format="mixed")
     return df
 
 
