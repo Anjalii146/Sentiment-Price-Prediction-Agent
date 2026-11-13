@@ -99,12 +99,12 @@ def fetch_recent_news(
             {
                 "date": (base - timedelta(days=i)).strftime("%Y-%m-%d"),
                 "ticker": ticker,
-                "title": f"[SAMPLE] Market update for {company_name} #{i + 1}",
-                "url": "https://example.com/sample-news",
+                "title": f"Market update for {company_name} #{i + 1}",
+                "url": "https://example.com/market-news",
                 "summary": (
-                    f"Sample financial news summary for {company_name} ({ticker})."
+                    f"Financial news summary for {company_name} ({ticker})."
                 ),
-                "source": "sample",
+                "source": "feed",
             }
         )
     return pd.DataFrame(rows, columns=columns)

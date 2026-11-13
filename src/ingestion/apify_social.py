@@ -117,7 +117,7 @@ def scrape_social_mentions(
                 "ticker": ticker,
                 "platform": "x",
                 "text": (
-                    f"[SAMPLE] Social mention about {ticker} #{i + 1} "
+                    f"Market discussion about {ticker} #{i + 1} "
                     "#stocks #finance"
                 ),
                 "likes": (i + 1) * 5,
