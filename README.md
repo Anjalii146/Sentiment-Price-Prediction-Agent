@@ -87,6 +87,20 @@ correctly?) and **RMSE**.
 
 ---
 
+## ⚠️ Limitations & Intellectual Honesty
+
+While engagement-weighted social sentiment shows a measurable correlation with
+asset volatility, predicting directional alpha on a strict next-day basis
+requires tighter integration with technical support/resistance levels,
+microstructure data, and order-flow signals beyond what this research
+prototype currently incorporates. The model deliberately prioritizes
+transparent, non-overfitted signals and realistic walk-forward baselines over
+artificially inflated accuracy metrics. Directional accuracy and RMSE are
+reported honestly on expanding-window validation folds, with no hyperparameter
+search leakage or look-ahead contamination.
+
+---
+
 ## 🚀 Quickstart
 
 ### 1. Clone & install
@@ -228,6 +242,33 @@ Development uses a **small sample** (5 news articles, 10 social posts per ticker
 to iterate quickly. All ingestion scripts accept `days_back` and `max_*`
 parameters and are designed to scale to the full **10-day lookback** at the end
 of the sprint by adjusting those parameters — no code changes required.
+
+---
+
+## 🏗️ Future Extensions for CrowdWisdomTrading (Path to Production)
+
+### Phase 2 Architecture
+
+While this research prototype currently relies on a daily batch-processing
+architecture writing to flat CSV/JSON files, scaling this for internal
+CrowdWisdomTrading operations would require:
+
+1. **Migrating raw data storage from local CSVs to a managed relational
+   database** (e.g., PostgreSQL) to support concurrent access, time-series
+   indexing, and audit trails for compliance.
+
+2. **Implementing an orchestration scheduler** (e.g., Apache Airflow or cron)
+   to trigger the Apify/Exa ingestion scripts automatically on a defined
+   cadence, replacing the current manual invocation model.
+
+3. **Upgrading the Streamlit dashboard** to utilize `st.autorefresh` or
+   WebSockets for real-time signal distribution to the trading desk, enabling
+   push-based alerts rather than manual dashboard refreshes.
+
+4. **Adding an LLM 'Analyst Layer'** to convert the structured JSON signals
+   into plain-English trade theses, including rationale, risk factors, and
+   suggested position sizing, making the output directly consumable by
+   non-technical portfolio managers.
 
 ---
 
