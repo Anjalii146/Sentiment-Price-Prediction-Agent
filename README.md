@@ -183,38 +183,80 @@ a news sentiment table.
 
 ---
 
-## 📁 Project Structure
+## 🏗️ System Architecture
 
-```
-Sentiment-Price-Prediction-Agent/
-├── .env.example              # API key placeholders (do not commit .env)
-├── .gitignore                # Git ignore rules
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-├── config/
-│   └── assets.yaml           # Tracked tickers (Tencent, Samsung)
-├── data/
-│   ├── raw/.gitkeep          # Raw ingestion outputs (gitignored contents)
-│   └── processed/.gitkeep    # Processed features (gitignored contents)
-├── outputs/                  # Model outputs & signals (gitignored)
-├── src/
-│   ├── ingestion/
-│   │   ├── __init__.py
-│   │   ├── exa_news.py       # Phase 2-3: Exa news scraper
-│   │   ├── apify_social.py   # Phase 3: Apify X/Twitter scraper
-│   │   └── price_data.py     # Phase 4: yfinance OHLCV
-│   ├── processing/
-│   │   ├── __init__.py
-│   │   └── features.py       # Phase 4: vaderSentiment + engagement weighting
-│   ├── modeling/
-│   │   ├── __init__.py
-│   │   ├── build_targets.py  # Phase 5: merge + technicals + target
-│   │   └── train_model.py    # Phase 6: LightGBM walk-forward model
-│   └── reporting/
-│       ├── __init__.py
-│       ├── dashboard.py      # Phase 7: Streamlit Bloomberg-style UI
-│       └── generate_signals.py  # Phase 8: structured JSON signals
-└── project_context.md        # Sprint instructions & rules
+```mermaid
+flowchart TD
+    subgraph External["External Data Sources"]
+        EXA[Exa News API]
+        APIFY[Apify X/Twitter Scraper]
+        YF[yfinance OHLCV]
+    end
+
+    subgraph Ingestion["Phase 2–3: Ingestion Layer"]
+        EXA_NEWS[src/ingestion/exa_news.py]
+        APIFY_SOCIAL[src/ingestion/apify_social.py]
+        PRICE[src/ingestion/price_data.py]
+    end
+
+    subgraph Processing["Phase 4: Processing Layer"]
+        FEATURES[src/processing/features.py]
+    end
+
+    subgraph Modeling["Phase 5–6: Modeling Layer"]
+        TARGETS[src/modeling/build_targets.py]
+        MODEL[src/modeling/train_model.py]
+    end
+
+    subgraph Reporting["Phase 7–8: Reporting Layer"]
+        DASHBOARD[src/reporting/dashboard.py]
+        SIGNALS[src/reporting/generate_signals.py]
+    end
+
+    subgraph Outputs["Outputs"]
+        NEWS_CSV[data/raw/news_sample.csv]
+        SOCIAL_CSV[data/raw/social_sample.csv]
+        PRICE_CSV[data/processed/price_sample.csv]
+        SENTIMENT_CSV[data/processed/daily_sentiment_sample.csv]
+        MERGED_CSV[data/processed/merged_sample.csv]
+        PREDICTIONS_CSV[outputs/predictions_sample.csv]
+        SIGNALS_JSON[outputs/signals.json]
+    end
+
+    EXA --> EXA_NEWS
+    APIFY --> APIFY_SOCIAL
+    YF --> PRICE
+
+    EXA_NEWS --> NEWS_CSV
+    APIFY_SOCIAL --> SOCIAL_CSV
+    PRICE --> PRICE_CSV
+
+    NEWS_CSV --> FEATURES
+    SOCIAL_CSV --> FEATURES
+    PRICE_CSV --> FEATURES
+
+    FEATURES --> SENTIMENT_CSV
+
+    SENTIMENT_CSV --> TARGETS
+    PRICE_CSV --> TARGETS
+
+    TARGETS --> MERGED_CSV
+    MERGED_CSV --> MODEL
+
+    MODEL --> PREDICTIONS_CSV
+    PREDICTIONS_CSV --> SIGNALS
+
+    SIGNALS --> SIGNALS_JSON
+    SIGNALS_JSON --> DASHBOARD
+    PREDICTIONS_CSV --> DASHBOARD
+    SENTIMENT_CSV --> DASHBOARD
+
+    style EXA fill:#f96,stroke:#333
+    style APIFY fill:#f96,stroke:#333
+    style YF fill:#f96,stroke:#333
+    style MODEL fill:#bbf,stroke:#333
+    style DASHBOARD fill:#bfb,stroke:#333
+    style SIGNALS_JSON fill:#fbf,stroke:#333
 ```
 
 > `data/raw/`, `data/processed/`, and `outputs/` contain generated artifacts and
