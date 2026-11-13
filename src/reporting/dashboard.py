@@ -132,3 +132,151 @@ else:
 
 st.sidebar.divider()
 st.sidebar.caption("Data: sample dev set (scale to 10-day lookback at end of sprint)")
+
+
+# --- Metric cards -----------------------------------------------------------
+def render_metric_cards(
+    ticker: str,
+    price_df: pd.DataFrame,
+    predictions_df: pd.DataFrame,
+    sentiment_df: pd.DataFrame,
+) -> None:
+    """Render the top-row metric cards: price, predicted price, signal, sentiment.
+
+    Parameters
+    ----------
+    ticker : str
+        Selected ticker.
+    price_df : pd.DataFrame
+        Price data with columns including ``ticker``, ``date``, ``close``.
+    predictions_df : pd.DataFrame
+        Predictions with columns including ``ticker``, ``date``,
+        ``predicted_next_close``, ``direction_signal``.
+    sentiment_df : pd.DataFrame
+        Daily sentiment with columns including ``ticker``, ``date``,
+        ``daily_sentiment_score``.
+    """
+    # Latest price for the ticker
+    ticker_price = (
+        price_df[price_df["ticker"] == ticker].sort_values("date")
+        if not price_df.empty
+        else pd.DataFrame()
+    )
+    latest_close = (
+        float(ticker_price["close"].iloc[-1]) if not ticker_price.empty else None
+    )
+    latest_date = (
+        ticker_price["date"].iloc[-1] if not ticker_price.empty else None
+    )
+
+    # Latest prediction for the ticker (most recent date)
+    ticker_pred = (
+        predictions_df[predictions_df["ticker"] == ticker].sort_values("date")
+        if not predictions_df.empty
+        else pd.DataFrame()
+    )
+    latest_pred_close = (
+        float(ticker_pred["predicted_next_close"].iloc[-1])
+        if not ticker_pred.empty and "predicted_next_close" in ticker_pred.columns
+        else None
+    )
+    latest_signal = (
+        str(ticker_pred["direction_signal"].iloc[-1])
+        if not ticker_pred.empty and "direction_signal" in ticker_pred.columns
+        else "—"
+    )
+
+    # Latest sentiment score for the ticker
+    ticker_sent = (
+        sentiment_df[sentiment_df["ticker"] == ticker].sort_values("date")
+        if not sentiment_df.empty
+        else pd.DataFrame()
+    )
+    latest_sentiment = (
+        float(ticker_sent["daily_sentiment_score"].iloc[-1])
+        if not ticker_sent.empty and "daily_sentiment_score" in ticker_sent.columns
+        else 0.0
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Current Price ({ticker})</div>
+                <div class="metric-value">
+                    {f"{latest_close:,.2f}" if latest_close is not None else "—"}
+                </div>
+                <div class="metric-label">
+                    {latest_date.strftime("%Y-%m-%d") if latest_date is not None else "—"}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Predicted Price (Next Day)</div>
+                <div class="metric-value">
+                    {f"{latest_pred_close:,.2f}" if latest_pred_close is not None else "—"}
+                </div>
+                <div class="metric-label">Model forecast</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with c3:
+        signal_class = (
+            "signal-bullish" if latest_signal == "Bullish" else "signal-bearish"
+        )
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Signal</div>
+                <div class="metric-value {signal_class}">{latest_signal}</div>
+                <div class="metric-label">Directional signal</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with c4:
+        sentiment_color = "#3fb950" if latest_sentiment >= 0 else "#f85149"
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Social Sentiment Score</div>
+                <div class="metric-value" style="color:{sentiment_color}">
+                    {latest_sentiment:+.2f}
+                </div>
+                <div class="metric-label">Daily aggregated sentiment</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# --- Main layout ------------------------------------------------------------
+st.title("📈 HengSeng Quantitative Sentiment Signals")
+st.caption(
+    "Bloomberg Terminal-style sentiment signals for price prediction. "
+    "Zero look-ahead bias: predictions use only on/before-date data."
+)
+
+if not available_tickers:
+    st.warning(
+        "No price data available. Run the ingestion and modeling pipeline first "
+        "(see README)."
+    )
+else:
+    render_metric_cards(
+        selected_ticker,
+        price_df,
+        predictions_df=load_predictions(),
+        sentiment_df=load_daily_sentiment(),
+    )
