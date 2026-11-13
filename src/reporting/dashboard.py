@@ -433,7 +433,7 @@ else:
                 return "color: #8b949e"
 
             st.dataframe(
-                display_df.style.applymap(
+                display_df.style.map(
                     _sentiment_color, subset=["sentiment_score"]
                 ),
                 use_container_width=True,
