@@ -381,3 +381,74 @@ else:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # --- Bottom table: recent news headlines with sentiment ----------------
+    st.subheader("Recent News & Sentiment")
+
+    news_df = load_news()
+    if news_df.empty:
+        st.info("No news data available. Run ingestion first.")
+    else:
+        ticker_news = (
+            news_df[news_df["ticker"] == selected_ticker]
+            .sort_values("date", ascending=False)
+            .head(10)
+        )
+
+        if ticker_news.empty:
+            st.info(f"No recent news for {selected_ticker}.")
+        else:
+            # Score sentiment on title if not already present
+            if "sentiment_score" not in ticker_news.columns:
+                from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+                _analyzer = SentimentIntensityAnalyzer()
+
+                def _score(text: str) -> float:
+                    if not isinstance(text, str) or not text.strip():
+                        return 0.0
+                    return float(_analyzer.polarity_scores(text)["compound"])
+
+                ticker_news = ticker_news.copy()
+                ticker_news["sentiment_score"] = ticker_news["title"].astype(str).map(
+                    _score
+                )
+
+            display_cols = [
+                c for c in ["date", "title", "summary", "source", "sentiment_score"]
+                if c in ticker_news.columns
+            ]
+            display_df = ticker_news[display_cols].copy()
+            display_df["date"] = display_df["date"].dt.strftime("%Y-%m-%d")
+
+            def _sentiment_color(val: float) -> str:
+                if val > 0.05:
+                    return "color: #3fb950"
+                if val < -0.05:
+                    return "color: #f85149"
+                return "color: #8b949e"
+
+            st.dataframe(
+                display_df.style.applymap(
+                    _sentiment_color, subset=["sentiment_score"]
+                ),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "date": "Date",
+                    "title": "Headline",
+                    "summary": "Summary",
+                    "source": "Source",
+                    "sentiment_score": st.column_config.NumberColumn(
+                        "Sentiment", format="%+.2f"
+                    ),
+                },
+            )
+
+    st.divider()
+    st.caption(
+        "HengSeng Sentiment Price-Prediction Agent | "
+        "Zero look-ahead bias | Sample dev data — scale to 10-day lookback"
+    )
