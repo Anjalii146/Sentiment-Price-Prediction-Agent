@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
@@ -385,8 +386,13 @@ def render_metric_cards(
     )
     sentiment_color = "#00d084" if latest_sentiment >= 0 else "#ff3b30"
 
-    ret_sign = "+" if predicted_return >= 0 else ""
-    ret_color = "signal-bullish" if predicted_return >= 0 else "signal-bearish"
+    # Calculate delta directly from the absolute prices being displayed
+    predicted_return_calc = (
+        (latest_pred_close - latest_close) / latest_close
+        if latest_pred_close is not None and latest_close is not None
+        else 0.0
+    )
+    ret_color = "signal-bullish" if predicted_return_calc >= 0 else "signal-bearish"
 
     st.markdown(
         f"""
@@ -399,7 +405,7 @@ def render_metric_cards(
             <div class="metric-card">
                 <div class="metric-label">PREDICTED NEXT CLOSE</div>
                 <div class="metric-value">{f"{latest_pred_close:,.2f}" if latest_pred_close is not None else "—"}</div>
-                <div class="metric-sub">{ret_sign}{predicted_return:+.2%} expected</div>
+                <div class="metric-sub {ret_color}">{predicted_return_calc:+.2%} expected</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">DIRECTIONAL SIGNAL</div>
@@ -453,8 +459,9 @@ def render_chart(
     else:
         chart_df["engagement_weighted_sentiment"] = 0.0
 
-    fig = go.Figure()
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    # Candlestick trace (primary Y axis)
     fig.add_trace(
         go.Candlestick(
             x=chart_df["date"],
@@ -467,18 +474,20 @@ def render_chart(
             decreasing_line_color="#ff3b30",
             increasing_fillcolor="#00d084",
             decreasing_fillcolor="#ff3b30",
-        )
+        ),
+        secondary_y=False,
     )
 
+    # Engagement-weighted sentiment bars (secondary Y axis)
     fig.add_trace(
         go.Bar(
             x=chart_df["date"],
-            y=chart_df["engagement_weighted_sentiment"],
+            y=chart_df["engagement_weighted_sentiment"].fillna(0),
             name="Engagement-Weighted Sentiment",
-            marker_color="#F4A30B",
-            opacity=0.5,
-            yaxis="y2",
-        )
+            marker_color="#00d0ff",
+            opacity=0.6,
+        ),
+        secondary_y=True,
     )
 
     fig.update_layout(
