@@ -280,3 +280,104 @@ else:
         predictions_df=load_predictions(),
         sentiment_df=load_daily_sentiment(),
     )
+
+    st.divider()
+
+    # --- Main chart: candlestick + sentiment bars ---------------------------
+    st.subheader(f"Price & Sentiment — {selected_ticker} (Last 30 Days)")
+
+    ticker_price = (
+        price_df[price_df["ticker"] == selected_ticker].sort_values("date")
+        if not price_df.empty
+        else pd.DataFrame()
+    )
+    ticker_sent = (
+        sentiment_df[sentiment_df["ticker"] == selected_ticker].sort_values("date")
+        if not sentiment_df.empty
+        else pd.DataFrame()
+    )
+
+    if ticker_price.empty:
+        st.info("No price data available for the selected ticker.")
+    else:
+        # Last 30 days of price data
+        chart_df = ticker_price.tail(30).copy()
+
+        # Merge sentiment for the bar overlay
+        if not ticker_sent.empty:
+            chart_df = chart_df.merge(
+                ticker_sent[["date", "daily_sentiment_score", "avg_engagement_weight"]],
+                on="date",
+                how="left",
+            )
+            chart_df["engagement_weighted_sentiment"] = (
+                chart_df["daily_sentiment_score"].fillna(0)
+                * chart_df["avg_engagement_weight"].fillna(0)
+            )
+        else:
+            chart_df["engagement_weighted_sentiment"] = 0.0
+
+        fig = go.Figure()
+
+        # Candlestick trace (primary Y)
+        fig.add_trace(
+            go.Candlestick(
+                x=chart_df["date"],
+                open=chart_df["open"],
+                high=chart_df["high"],
+                low=chart_df["low"],
+                close=chart_df["close"],
+                name="OHLC",
+                increasing_line_color="#3fb950",
+                decreasing_line_color="#f85149",
+            )
+        )
+
+        # Engagement-weighted sentiment bars (secondary Y)
+        fig.add_trace(
+            go.Bar(
+                x=chart_df["date"],
+                y=chart_df["engagement_weighted_sentiment"],
+                name="Engagement-Weighted Sentiment",
+                marker_color="#58a6ff",
+                opacity=0.6,
+                yaxis="y2",
+            )
+        )
+
+        fig.update_layout(
+            template="plotly_dark",
+            plot_bgcolor="#0e1117",
+            paper_bgcolor="#0e1117",
+            font=dict(color="#e0e0e0"),
+            xaxis=dict(
+                title="Date",
+                rangeslider=dict(visible=False),
+                type="date",
+            ),
+            yaxis=dict(
+                title="Price",
+                side="left",
+                gridcolor="#30363d",
+            ),
+            yaxis2=dict(
+                title="Engagement-Weighted Sentiment",
+                side="right",
+                overlaying="y",
+                gridcolor="#30363d",
+                showgrid=False,
+            ),
+            barmode="overlay",
+            hovermode="x unified",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+            ),
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=500,
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
