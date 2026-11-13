@@ -76,8 +76,9 @@ def scrape_social_mentions(
                 ).isoformat(),
             }
             run = client.actor(actor_id).call(run_input=run_input)
+            dataset_id = getattr(run, "default_dataset_id", None)
             items = list(
-                client.dataset(run["defaultDatasetId"]).iterate_items()
+                client.dataset(dataset_id).iterate_items()
             )
 
             rows = []
