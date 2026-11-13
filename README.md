@@ -314,8 +314,8 @@ CrowdWisdomTrading operations would require:
 
 ---
 
-## 📄 License
+##  License
 
-Internal HengSeng project. Proprietary and confidential.
+Internal project. 
 
 **Developed by Anjali Shewale**
