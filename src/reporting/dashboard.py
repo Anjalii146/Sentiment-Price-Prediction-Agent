@@ -660,6 +660,43 @@ else:
     render_news_table(selected_ticker)
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # DATA & EXPORT panel
+    st.markdown(
+        """
+        <div class="panel">
+        <div class="panel-title">DATA & EXPORT</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    predictions_df_export = load_predictions()
+    signals_path = OUTPUTS / "signals.json"
+    signals_json_str = ""
+    if signals_path.exists():
+        with open(signals_path, "r", encoding="utf-8") as fh:
+            signals_json_str = fh.read()
+
+    col_exp1, col_exp2 = st.columns(2)
+    with col_exp1:
+        st.download_button(
+            label="⬇ Download predictions.csv",
+            data=predictions_df_export.to_csv(index=False).encode("utf-8") if not predictions_df_export.empty else b"",
+            file_name="predictions.csv",
+            mime="text/csv",
+            use_container_width=True,
+            disabled=predictions_df_export.empty,
+        )
+    with col_exp2:
+        st.download_button(
+            label="⬇ Download signals.json",
+            data=signals_json_str.encode("utf-8") if signals_json_str else b"",
+            file_name="signals.json",
+            mime="application/json",
+            use_container_width=True,
+            disabled=not signals_json_str,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
     # Footer
     st.markdown(
         """
