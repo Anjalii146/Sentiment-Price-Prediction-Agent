@@ -7,7 +7,7 @@ scores sentiment locally with `vaderSentiment`, engineers features, predicts
 next-day returns with a LightGBM walk-forward model, and exposes signals via a
 Bloomberg Terminal-style Streamlit dashboard and a structured JSON signal feed.
 
-**Built in a 12-hour sprint.** All code is modular, documented, and PEP 8.
+ All code is modular, documented, and PEP 8.
 
 ---
 
