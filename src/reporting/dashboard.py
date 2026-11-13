@@ -140,16 +140,56 @@ st.markdown(
         border-radius: 4px;
         padding: 16px;
         margin-bottom: 16px;
+        position: relative;
+    }
+    .panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent), var(--bullish));
+        border-radius: 4px 4px 0 0;
+        opacity: 0.6;
     }
     .panel-title {
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 1.5px;
-        color: var(--text-dim);
+        color: var(--accent);
         margin-bottom: 12px;
         font-weight: 700;
         border-bottom: 1px solid var(--border);
         padding-bottom: 8px;
+    }
+    /* Download button styling - vibrant terminal buttons */
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+        border: 1px solid var(--border);
+        border-top: 2px solid var(--accent);
+        border-radius: 6px;
+        color: var(--accent);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 14px 20px;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+    .stDownloadButton > button:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 15px rgba(244, 163, 11, 0.3);
+        background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+        color: #ffffff;
+    }
+    .stDownloadButton > button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        border-color: #333333;
+        color: #666666;
     }
 
     .metrics-grid {
@@ -187,6 +227,15 @@ st.markdown(
     }
     .signal-bullish { color: var(--bullish); }
     .signal-bearish { color: var(--bearish); }
+    .signal-neutral { color: #ffa500; }
+    /* Metric card border colors by signal */
+    .metric-card.bullish { border-top-color: var(--bullish); }
+    .metric-card.bearish { border-top-color: var(--bearish); }
+    .metric-card.neutral { border-top-color: #ffa500; }
+    /* Sentiment table colors - more vivid */
+    .sentiment-bullish { color: #00ff88; font-weight: 700; }
+    .sentiment-bearish { color: #ff4d4d; font-weight: 700; }
+    .sentiment-neutral { color: #ffa500; font-weight: 600; }
 
     .stDataFrame {
         background: var(--bg-panel) !important;
@@ -384,7 +433,10 @@ def render_metric_cards(
     signal_class = (
         "signal-bullish" if latest_signal == "Bullish" else "signal-bearish"
     )
-    sentiment_color = "#00d084" if latest_sentiment >= 0 else "#ff3b30"
+    signal_card_class = (
+        "bullish" if latest_signal == "Bullish" else "bearish"
+    )
+    sentiment_color = "#00ff88" if latest_sentiment >= 0 else "#ff4d4d"
 
     # Calculate delta directly from the absolute prices being displayed
     predicted_return_calc = (
@@ -397,22 +449,22 @@ def render_metric_cards(
     st.markdown(
         f"""
         <div class="metrics-grid">
-            <div class="metric-card">
+            <div class="metric-card {signal_card_class}">
                 <div class="metric-label">CURRENT PRICE — {ticker}</div>
                 <div class="metric-value">{f"{latest_close:,.2f}" if latest_close is not None else "—"}</div>
                 <div class="metric-sub">{latest_date} · Close</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card {signal_card_class}">
                 <div class="metric-label">PREDICTED NEXT CLOSE</div>
                 <div class="metric-value">{f"{latest_pred_close:,.2f}" if latest_pred_close is not None else "—"}</div>
                 <div class="metric-sub {ret_color}">{predicted_return_calc:+.2%} expected</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card {signal_card_class}">
                 <div class="metric-label">DIRECTIONAL SIGNAL</div>
                 <div class="metric-value {signal_class}">{latest_signal}</div>
                 <div class="metric-sub">Model confidence signal</div>
             </div>
-            <div class="metric-card">
+            <div class="metric-card {signal_card_class}">
                 <div class="metric-label">SENTIMENT SCORE</div>
                 <div class="metric-value" style="color:{sentiment_color}">{latest_sentiment:+.2f}</div>
                 <div class="metric-sub">{social_count} social · {news_count} news</div>
@@ -575,10 +627,10 @@ def render_news_table(ticker: str) -> None:
 
     def _sentiment_color(val: float) -> str:
         if val > 0.05:
-            return "color: #00d084"
+            return "color: #00ff88; font-weight: 700;"
         if val < -0.05:
-            return "color: #ff3b30"
-        return "color: #999999"
+            return "color: #ff4d4d; font-weight: 700;"
+        return "color: #ffa500; font-weight: 600;"
 
     st.dataframe(
         display_df.style.map(
